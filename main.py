@@ -1,11 +1,16 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel
-from PyQt5.QtCore import Qt, QPoint
-from PyQt5.QtGui import QPixmap, QImage
+import time
+
 from PIL import Image
+
+from PyQt5.QtCore import Qt, QPoint, QTimer
+from PyQt5.QtGui import QPixmap, QImage
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel
 
 
 class TransparentWindow(QMainWindow):
+    labels = {}
+
     def __init__(self):
         super().__init__()
 
@@ -36,12 +41,16 @@ class TransparentWindow(QMainWindow):
         # 加载并显示图片
         self.load_and_display_images()
 
+        # Run the timer
+        self.setup_timer()
+
     def load_and_display_images(self):
         # 图片路径列表 (请替换为你的实际图片路径)
         image_paths = {
             'top_left': 'nw.png',
             'top_right': 'ne.png',
-            'bottom_left': 'sw.png'
+            'bottom_left': 'sw.png',
+            'gaze': 'gaze.png'
         }
 
         # 处理并显示每张图片
@@ -76,6 +85,12 @@ class TransparentWindow(QMainWindow):
                         label.move(self.width() - pixmap.width(), 0)
                     elif position == 'bottom_left':
                         label.move(0, self.height() - pixmap.height())
+                    elif position == 'gaze':
+                        label.move((self.width() - pixmap.width())//2,
+                                   (self.height() - pixmap.height())//2)
+
+                    # Register the label
+                    self.labels[position] = label
 
                     label.show()
 
@@ -83,6 +98,19 @@ class TransparentWindow(QMainWindow):
                 print(f"加载图片 {path} 失败: {str(e)}")
 
         return
+
+    def setup_timer(self):
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.ontime_callback)
+        self.timer.start()
+
+    def ontime_callback(self):
+        t = time.time()
+        T = 10  # T in seconds
+        x = int((t / T % 1) * self.width())
+        label = self.labels['gaze']
+        y = label.pos().y()
+        label.move(x, y)
 
 
 if __name__ == "__main__":
