@@ -1,6 +1,7 @@
 import sys
 import time
 import threading
+import socket
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from PIL import Image
@@ -46,8 +47,8 @@ class TransparentWindow(QMainWindow):
         # Run the timer
         # self.setup_timer()
 
-        # Start the HTTP server in a separate thread
-        self.start_http_server()
+        # Start the TCP server in a separate thread
+        self.start_tcp_server()
 
     def load_and_display_images(self):
         # 图片路径列表 (请替换为你的实际图片路径)
@@ -117,40 +118,39 @@ class TransparentWindow(QMainWindow):
         y = label.pos().y()
         label.move(x, y)
 
-    def start_http_server(self):
+    def start_tcp_server(self):
         def run_server(labels, width, height):
-            class RequestHandler(BaseHTTPRequestHandler):
-                def do_GET(self):
+            server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            server_socket.bind(('localhost', 8080))
+            server_socket.listen(1)
+            print("TCP server started on port 8080")
+
+            while True:
+                client_socket, addr = server_socket.accept()
+                try:
+                    data = client_socket.recv(1024).decode()
+                    if not data:
+                        continue
+
+                    # Parse received data
                     try:
-                        # Parse query parameters
-                        query = self.path.split('?')[-1]
                         params = dict(param.split('=')
-                                      for param in query.split('&'))
+                                      for param in data.strip().split('&'))
                         x = float(params.get('x', 0))
                         y = float(params.get('y', 0))
 
                         # Update gaze label position
                         if 'gaze' in labels:
                             label = labels['gaze']
-                            label.move(int(x*width),
-                                       int(y*height))
+                            label.move(int(x * width), int(y * height))
 
                         # Send response
-                        self.send_response(200)
-                        self.end_headers()
-                        self.wfile.write(f"Position updated {x}, {y}".encode())
+                        client_socket.sendall(
+                            f"Position updated {x}, {y}".encode())
                     except Exception as e:
-                        self.send_response(400)
-                        self.end_headers()
-                        self.wfile.write(f"Error: {str(e)}".encode())
-
-                def log_message(self, format, *args):
-                    # Suppress HTTP server logs
-                    return
-
-            server = HTTPServer(('localhost', 8080), RequestHandler)
-            print("HTTP server started on port 8080")
-            server.serve_forever()
+                        client_socket.sendall(f"Error: {str(e)}".encode())
+                finally:
+                    client_socket.close()
 
         thread = threading.Thread(
             target=run_server, args=(self.labels, self.width(), self.height(),), daemon=True)
