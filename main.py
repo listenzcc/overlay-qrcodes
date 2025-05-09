@@ -19,6 +19,8 @@ class TransparentWindow(QMainWindow):
 
         # 获取主屏幕的几何信息
         screen = QApplication.primaryScreen()
+        if screen is None:
+            raise RuntimeError("No primary screen available.")
         screen_geometry = screen.geometry()
 
         # 设置窗口属性
@@ -65,7 +67,7 @@ class TransparentWindow(QMainWindow):
                 # 使用PIL加载并调整图片大小
                 with Image.open(path) as img:
                     img = img.convert('RGBA')  # 统一转换为RGBA格式
-                    img = img.resize((200, 200), Image.LANCZOS)
+                    img = img.resize((200, 200), Image.Resampling.LANCZOS)
                     # img = img.resize((200, 200), Image.LANCZOS)
                     print('Using img', position, path, img.size, img.mode)
 
